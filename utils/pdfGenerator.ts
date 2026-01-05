@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import { TimesheetData } from '@/types/timesheet';
-import { getDateRange } from './dateUtils';
 
 export function generatePDF(data: TimesheetData) {
   const pdf = new jsPDF('portrait', 'mm', 'a4');
@@ -8,9 +7,11 @@ export function generatePDF(data: TimesheetData) {
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 15;
   const contentWidth = pageWidth - 2 * margin;
+  const bottomMargin = 20; // Space reserved for page number
 
   let currentPage = 1;
   let yPosition = margin;
+  let currentX = margin;
 
   // Header with underline
   pdf.setFontSize(16);
@@ -41,9 +42,8 @@ export function generatePDF(data: TimesheetData) {
   yPosition += 5;
   pdf.text('Jabatan', leftColX, yPosition);
   pdf.text(`: ${data.header.jabatan}`, leftColX + 20, yPosition);
-  const dateRange = getDateRange(data.header.month, data.header.year);
   pdf.text('Periode', rightColX, yPosition);
-  pdf.text(`: ${dateRange}`, rightColX + 20, yPosition);
+  pdf.text(`: ${data.header.periode}`, rightColX + 20, yPosition);
 
   yPosition += 5;
   pdf.text('NIK', leftColX, yPosition);
@@ -63,88 +63,82 @@ export function generatePDF(data: TimesheetData) {
     paraf: 20,
   };
 
-  let currentX = margin;
-
-  // Draw table header
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-
   const headerHeight = 12;
 
-  // NO
-  pdf.rect(currentX, yPosition, colWidths.no, headerHeight);
-  pdf.text('NO.', currentX + colWidths.no / 2, yPosition + headerHeight / 2 + 1, { align: 'center' });
-  currentX += colWidths.no;
+  // Helper function to draw table header
+  const drawTableHeader = (yPos: number) => {
+    let currentX = margin;
 
-  // HARI
-  pdf.rect(currentX, yPosition, colWidths.day, headerHeight);
-  pdf.text('HARI', currentX + colWidths.day / 2, yPosition + 7, { align: 'center' });
-  currentX += colWidths.day;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
 
-  // TANGGAL
-  pdf.rect(currentX, yPosition, colWidths.date, headerHeight);
-  pdf.text('TANGGAL', currentX + colWidths.date / 2, yPosition + 7, { align: 'center' });
-  currentX += colWidths.date;
+    // NO
+    pdf.rect(currentX, yPos, colWidths.no, headerHeight);
+    pdf.text('NO.', currentX + colWidths.no / 2, yPos + headerHeight / 2 + 1, { align: 'center' });
+    currentX += colWidths.no;
 
-  // JAM KERJA (merged header)
-  const jamKerjaWidth = colWidths.timeIn + colWidths.timeOut;
-  pdf.rect(currentX, yPosition, jamKerjaWidth, 6);
-  pdf.text('JAM KERJA', currentX + jamKerjaWidth / 2, yPosition + 4, { align: 'center' });
+    // HARI
+    pdf.rect(currentX, yPos, colWidths.day, headerHeight);
+    pdf.text('HARI', currentX + colWidths.day / 2, yPos + 7, { align: 'center' });
+    currentX += colWidths.day;
 
-  // JAM KERJA - IN
-  pdf.rect(currentX, yPosition + 6, colWidths.timeIn, 6);
-  pdf.text('IN', currentX + colWidths.timeIn / 2, yPosition + 10, { align: 'center' });
-  currentX += colWidths.timeIn;
+    // TANGGAL
+    pdf.rect(currentX, yPos, colWidths.date, headerHeight);
+    pdf.text('TANGGAL', currentX + colWidths.date / 2, yPos + 7, { align: 'center' });
+    currentX += colWidths.date;
 
-  // JAM KERJA - OUT
-  pdf.rect(currentX, yPosition + 6, colWidths.timeOut, 6);
-  pdf.text('OUT', currentX + colWidths.timeOut / 2, yPosition + 10, { align: 'center' });
-  currentX += colWidths.timeOut;
+    // JAM KERJA (merged header)
+    const jamKerjaWidth = colWidths.timeIn + colWidths.timeOut;
+    pdf.rect(currentX, yPos, jamKerjaWidth, 6);
+    pdf.text('JAM KERJA', currentX + jamKerjaWidth / 2, yPos + 4, { align: 'center' });
 
-  // Activity
-  pdf.rect(currentX, yPosition, colWidths.activity, headerHeight);
-  pdf.text('Activity', currentX + colWidths.activity / 2, yPosition + 7, { align: 'center' });
-  currentX += colWidths.activity;
+    // JAM KERJA - IN
+    pdf.rect(currentX, yPos + 6, colWidths.timeIn, 6);
+    pdf.text('IN', currentX + colWidths.timeIn / 2, yPos + 10, { align: 'center' });
+    currentX += colWidths.timeIn;
 
-  // PARAF
-  pdf.rect(currentX, yPosition, colWidths.paraf, headerHeight);
-  pdf.text('PARAF', currentX + colWidths.paraf / 2, yPosition + 7, { align: 'center' });
+    // JAM KERJA - OUT
+    pdf.rect(currentX, yPos + 6, colWidths.timeOut, 6);
+    pdf.text('OUT', currentX + colWidths.timeOut / 2, yPos + 10, { align: 'center' });
+    currentX += colWidths.timeOut;
 
-  yPosition += headerHeight;
+    // Activity
+    pdf.rect(currentX, yPos, colWidths.activity, headerHeight);
+    pdf.text('Activity', currentX + colWidths.activity / 2, yPos + 7, { align: 'center' });
+    currentX += colWidths.activity;
+
+    // PARAF
+    pdf.rect(currentX, yPos, colWidths.paraf, headerHeight);
+    pdf.text('PARAF', currentX + colWidths.paraf / 2, yPos + 7, { align: 'center' });
+
+    return yPos + headerHeight;
+  };
+
+  // Draw initial table header
+  yPosition = drawTableHeader(yPosition);
+
+  // Helper function to draw page numbers
+  const drawPageNumber = () => {
+    pdf.setFontSize(9);
+    const boxWidth = 15;
+    const boxHeight = 8;
+    const pageNumberY = pageHeight - 13;
+
+    // Left box
+    pdf.rect(margin, pageNumberY, boxWidth, boxHeight);
+
+    // Right box
+    pdf.rect(pageWidth - margin - boxWidth, pageNumberY, boxWidth, boxHeight);
+
+    // Page number text (centered)
+    pdf.text(`Page ${currentPage} of 2`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  };
 
   // Table rows
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
 
-  const maxRowsPerPage = 18; // Adjust based on page size
-  let rowCount = 0;
-
   for (const activity of data.activities) {
-    if (rowCount >= maxRowsPerPage && currentPage === 1) {
-      // Add page number at bottom with boxes
-      pdf.setFontSize(9);
-
-      // Draw two small boxes on left and right
-      const boxWidth = 15;
-      const boxHeight = 8;
-      const pageNumberY = pageHeight - 13;
-
-      // Left box
-      pdf.rect(margin, pageNumberY, boxWidth, boxHeight);
-
-      // Right box
-      pdf.rect(pageWidth - margin - boxWidth, pageNumberY, boxWidth, boxHeight);
-
-      // Page number text (centered)
-      pdf.text(`Page ${currentPage} of 2`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      // New page
-      pdf.addPage();
-      currentPage++;
-      yPosition = margin;
-      rowCount = 0;
-    }
-
     // Calculate row height based on activities
     let totalLines = 0;
     for (const act of activity.activities) {
@@ -152,6 +146,24 @@ export function generatePDF(data: TimesheetData) {
       totalLines += lines.length;
     }
     const rowHeight = Math.max(10, totalLines * 4.5 + 4);
+
+    // Check if row will fit on current page
+    if (yPosition + rowHeight > pageHeight - bottomMargin) {
+      // Draw page number on current page
+      drawPageNumber();
+
+      // Create new page
+      pdf.addPage();
+      currentPage++;
+      yPosition = margin;
+
+      // Redraw table header on new page
+      yPosition = drawTableHeader(yPosition);
+
+      // Reset font for row content
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+    }
 
     currentX = margin;
 
@@ -195,7 +207,6 @@ export function generatePDF(data: TimesheetData) {
     pdf.rect(currentX, yPosition, colWidths.paraf, rowHeight);
 
     yPosition += rowHeight;
-    rowCount++;
   }
 
   // Add empty rows to fill up to 23 rows on last page
@@ -203,30 +214,25 @@ export function generatePDF(data: TimesheetData) {
   const emptyRowsNeeded = totalRows - data.activities.length;
 
   for (let i = 0; i < emptyRowsNeeded; i++) {
-    if (rowCount >= maxRowsPerPage && currentPage === 1) {
-      pdf.setFontSize(9);
+    const rowHeight = 10;
 
-      // Draw two small boxes on left and right
-      const boxWidth = 15;
-      const boxHeight = 8;
-      const pageNumberY = pageHeight - 13;
+    // Check if row will fit on current page
+    if (yPosition + rowHeight > pageHeight - bottomMargin) {
+      // Draw page number on current page
+      drawPageNumber();
 
-      // Left box
-      pdf.rect(margin, pageNumberY, boxWidth, boxHeight);
-
-      // Right box
-      pdf.rect(pageWidth - margin - boxWidth, pageNumberY, boxWidth, boxHeight);
-
-      // Page number text (centered)
-      pdf.text(`Page ${currentPage} of 2`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-
+      // Create new page
       pdf.addPage();
       currentPage++;
       yPosition = margin;
-      rowCount = 0;
-    }
 
-    const rowHeight = 10;
+      // Redraw table header on new page
+      yPosition = drawTableHeader(yPosition);
+
+      // Reset font
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+    }
     currentX = margin;
 
     pdf.rect(currentX, yPosition, colWidths.no, rowHeight);
@@ -250,7 +256,6 @@ export function generatePDF(data: TimesheetData) {
     pdf.rect(currentX, yPosition, colWidths.paraf, rowHeight);
 
     yPosition += rowHeight;
-    rowCount++;
   }
 
   yPosition += 5;
@@ -258,6 +263,18 @@ export function generatePDF(data: TimesheetData) {
   // Signatures section - with table
   const signatureTableHeight = 30;
   const signatureWidth = contentWidth / 3;
+  const totalSignatureHeight = 6 + signatureTableHeight + 6 + 6; // Header + signature space + name + title
+
+  // Check if signature section will fit on current page
+  if (yPosition + totalSignatureHeight > pageHeight - bottomMargin) {
+    // Draw page number on current page
+    drawPageNumber();
+
+    // Create new page for signatures
+    pdf.addPage();
+    currentPage++;
+    yPosition = margin;
+  }
 
   currentX = margin;
 
@@ -326,22 +343,8 @@ export function generatePDF(data: TimesheetData) {
   pdf.rect(currentX, yPosition, signatureWidth, titleRowHeight);
   pdf.text(data.signatures.acknowledgerTitle, currentX + signatureWidth / 2, yPosition + 4, { align: 'center' });
 
-  // Page number with boxes
-  pdf.setFontSize(9);
-
-  // Draw two small boxes on left and right of page number
-  const boxWidth = 15;
-  const boxHeight = 8;
-  const pageNumberY = pageHeight - 13;
-
-  // Left box
-  pdf.rect(margin, pageNumberY, boxWidth, boxHeight);
-
-  // Right box
-  pdf.rect(pageWidth - margin - boxWidth, pageNumberY, boxWidth, boxHeight);
-
-  // Page number text (centered)
-  pdf.text(`Page ${currentPage} of 2`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  // Draw page number on final page
+  drawPageNumber();
 
   return pdf;
 }

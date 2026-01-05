@@ -5,6 +5,7 @@ export interface TimesheetHeader {
   lokasi: string;
   month: number;
   year: number;
+  periode: string;
 }
 
 export interface DayActivity {

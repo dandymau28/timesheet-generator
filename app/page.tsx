@@ -81,6 +81,7 @@ export default function Home() {
         lokasi,
         month,
         year,
+        periode: dateRange,
       },
       activities: workDays.map((day) => ({
         ...day,

@@ -209,55 +209,6 @@ export function generatePDF(data: TimesheetData) {
     yPosition += rowHeight;
   }
 
-  // Add empty rows to fill up to 23 rows on last page
-  const totalRows = 23;
-  const emptyRowsNeeded = totalRows - data.activities.length;
-
-  for (let i = 0; i < emptyRowsNeeded; i++) {
-    const rowHeight = 10;
-
-    // Check if row will fit on current page
-    if (yPosition + rowHeight > pageHeight - bottomMargin) {
-      // Draw page number on current page
-      drawPageNumber();
-
-      // Create new page
-      pdf.addPage();
-      currentPage++;
-      yPosition = margin;
-
-      // Redraw table header on new page
-      yPosition = drawTableHeader(yPosition);
-
-      // Reset font
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-    }
-    currentX = margin;
-
-    pdf.rect(currentX, yPosition, colWidths.no, rowHeight);
-    currentX += colWidths.no;
-
-    pdf.rect(currentX, yPosition, colWidths.day, rowHeight);
-    currentX += colWidths.day;
-
-    pdf.rect(currentX, yPosition, colWidths.date, rowHeight);
-    currentX += colWidths.date;
-
-    pdf.rect(currentX, yPosition, colWidths.timeIn, rowHeight);
-    currentX += colWidths.timeIn;
-
-    pdf.rect(currentX, yPosition, colWidths.timeOut, rowHeight);
-    currentX += colWidths.timeOut;
-
-    pdf.rect(currentX, yPosition, colWidths.activity, rowHeight);
-    currentX += colWidths.activity;
-
-    pdf.rect(currentX, yPosition, colWidths.paraf, rowHeight);
-
-    yPosition += rowHeight;
-  }
-
   yPosition += 5;
 
   // Signatures section - with table
